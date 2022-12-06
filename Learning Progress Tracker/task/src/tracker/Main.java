@@ -20,8 +20,8 @@ public class Main {
         boolean isCommand = true;
         boolean isCredentials = true;
         int emailID = 10000;
-        Map<String, Integer> emails = new LinkedHashMap<>();
-        Map<Integer, int[]> courses = new LinkedHashMap<>();
+        Map<String, String> emails = new LinkedHashMap<>();
+        Map<String, int[]> courses = new LinkedHashMap<>();
 
 
         while (isCommand) {
@@ -46,11 +46,12 @@ public class Main {
 
                         if (learner.getFirstName().matches(nameRegex) && learner.getLastName().matches(nameRegex) && learner.getEmail().matches(emailRegex)) {
                             String email = learner.getEmail();
+                            String stringEmailID = Integer.toString(emailID);
 
-                            if (emails.putIfAbsent(email, emailID) != null) {
-                                System.out.println("The email is already taken");
+                            if (emails.putIfAbsent(email, stringEmailID) != null) {
+                                System.out.println("This email is already taken");
                             } else {
-                                emails.put(email, emailID);
+                                emails.put(email, stringEmailID);
                                 count++;
                                 emailID++;
                                 System.out.println("The student has been added");
@@ -85,7 +86,7 @@ public class Main {
                 addPoints(emails, courses);
             } else if ("find".equals(command)) {
                 //implement find functionality (while loop)
-                findStudent(courses);
+                findStudent(emails, courses);
             } else if (command.trim().isEmpty()) {
                 System.out.println("no input");
             } else if ("back".equals(command)) {
@@ -100,9 +101,10 @@ public class Main {
         }
     }
 
-    public static void addPoints(Map<String ,Integer> emails, Map<Integer, int[]> courses) {
+    public static void addPoints(Map<String ,String> emails, Map<String, int[]> courses) {
 
         boolean addingPoints = true;
+        boolean noNonInteger = true;
 
         System.out.println("Enter an id and points or 'back' to return");
         while (addingPoints) {
@@ -110,31 +112,31 @@ public class Main {
             if (!Objects.equals("back", idAndPoints)) {
 
                 String[] stringArray = idAndPoints.split(" ");
-                int[] intArray = new int[stringArray.length];
-                for (int i = 0; i < stringArray.length; i++) {
-                    try {
-                        intArray[i] = Integer.parseInt(stringArray[i]);
-                    } catch (NumberFormatException e) {
-                        System.out.println("Incorrect points format here.");
-                    }
+                int[] intArray = new int[stringArray.length-1];
+                for (int i = 0; i < intArray.length; i++) {
+                    try {intArray[i] = Integer.parseInt(stringArray[i+1]);} catch (NumberFormatException e) {noNonInteger = false;}
                 }
 
-                int id = intArray[0];
-                if (emails.containsValue(id)) {
+                String stringID = stringArray[0];
+
+                if (emails.containsValue(stringID)) {
                     //Arrays.stream(intArray).allMatch(x -> x > 0). makes sure all the elements are positive
-                    if (intArray.length == 5 && Arrays.stream(intArray).allMatch(x -> x > 0)) {
-                        if (courses.containsKey(id)) {
-                            courses.compute(id, (key, value) -> {
-                                for (int i = 1; i < value.length; i++) {
+                    if (stringArray.length == 5 && Arrays.stream(intArray).allMatch(x -> x > 0) && noNonInteger) {
+                        if (courses.containsKey(stringID)) {
+                            courses.compute(stringID, (key, value) -> {
+                                for (int i = 0; i < value.length; i++) {
                                     value[i] += intArray[i];
                                 }
                                 return value;
                             });
-                        } else {courses.put(id, intArray);}
+                        } else {courses.put(stringID, intArray);}
                         System.out.println("Points updated.");
 
-                    } else {System.out.println("Incorrect points format.");}
-                } else {System.out.println("No student is found for id=" + id + ".");}
+                    } else {
+                        System.out.println("Incorrect points format.");
+                        noNonInteger = true;
+                    }
+                } else {System.out.println("No student is found for id=" + stringID + ".");}
 
             } else {
                 addingPoints = false;
@@ -144,18 +146,21 @@ public class Main {
         }
     }
 
-    public static void findStudent(Map<Integer, int[]> courses) {
+    public static void findStudent(Map<String, String> emails, Map<String, int[]> courses) {
         boolean stillSearching = true;
-        String template = "id points: Java=%d; DSA=%d; Database=%d; Spring=%d\n";
+        String template = "%s points: Java=%d; DSA=%d; Databases=%d; Spring=%d";
         System.out.println("Enter an id or back to return");
         while (stillSearching) {
             String inputId = scanner.nextLine();
             if (!Objects.equals("back", inputId)) {
-                int studentId = Integer.parseInt(inputId);
-                if (courses.containsKey(studentId)) {
-                    int[] scores = courses.get(studentId);
-                    System.out.printf(template, scores[1], scores[2], scores[3], scores[4]);
-                } else {System.out.println("No student is found for id=" + studentId + ".");}
+                int[] scores = courses.get(inputId);
+
+                if (emails.containsValue(inputId)) {
+                    if (courses.containsKey(inputId) && scores != null) {
+                        System.out.printf(template, inputId, scores[0], scores[1], scores[2], scores[3]);
+                    } else {System.out.printf(template, inputId, 0, 0, 0, 0);}
+                } else {System.out.println("No student is found for id=" + inputId + ".");}
+
 
             } else {stillSearching = false;}
         }
