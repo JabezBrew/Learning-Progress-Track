@@ -1,5 +1,6 @@
 package tracker;
 import java.util.*;
+import java.util.function.BiFunction;
 
 
 public class Main {
@@ -16,12 +17,13 @@ public class Main {
 
 
 
-        int count = 0;
+        int studentsAdded = 0;
         boolean isCommand = true;
         boolean isCredentials = true;
         int emailID = 10000;
         Map<String, String> emails = new LinkedHashMap<>();
         Map<String, int[]> courses = new LinkedHashMap<>();
+        List<int[]> submissions = new ArrayList<>();
 
 
         while (isCommand) {
@@ -36,7 +38,7 @@ public class Main {
                     String studentCredentials = scanner.nextLine();
 
                     if (studentCredentials.equals("back")) {
-                        System.out.printf("Total %d students have been added\n", count);
+                        System.out.printf("Total %d students have been added\n", studentsAdded);
                         isCredentials = false;
                     }
                     else if ( studentCredentials.split(" ").length < 3) {
@@ -52,7 +54,7 @@ public class Main {
                                 System.out.println("This email is already taken");
                             } else {
                                 emails.put(email, stringEmailID);
-                                count++;
+                                studentsAdded++;
                                 emailID++;
                                 System.out.println("The student has been added");
                             }
@@ -73,7 +75,6 @@ public class Main {
 
 
             } else if ("list".equals(command)) {
-                //implement list functionality
                 if (emails.isEmpty()) {
                     System.out.println("No students found");
                 } else {
@@ -81,11 +82,11 @@ public class Main {
                     emails.forEach((email, id) -> System.out.println(id));
                 }
 
+            } else if ("statistics".equals(command)) {
+                showStats(courses, submissions);
             } else if ("add points".equals(command)) {
-                //implement add points functionality (while loop)
-                addPoints(emails, courses);
+                addPoints(emails, courses, submissions);
             } else if ("find".equals(command)) {
-                //implement find functionality (while loop)
                 findStudent(emails, courses);
             } else if (command.trim().isEmpty()) {
                 System.out.println("no input");
@@ -101,7 +102,7 @@ public class Main {
         }
     }
 
-    public static void addPoints(Map<String ,String> emails, Map<String, int[]> courses) {
+    public static void addPoints(Map<String ,String> emails, Map<String, int[]> courses, List<int[]> submissions) {
 
         boolean addingPoints = true;
         boolean noNonInteger = true;
@@ -118,10 +119,11 @@ public class Main {
                 }
 
                 String stringID = stringArray[0];
+                submissions.add(intArray);
 
                 if (emails.containsValue(stringID)) {
-                    //Arrays.stream(intArray).allMatch(x -> x > 0). makes sure all the elements are positive
-                    if (stringArray.length == 5 && Arrays.stream(intArray).allMatch(x -> x > 0) && noNonInteger) {
+                    //Arrays.stream(intArray).allMatch(x -> x >= 0). makes sure all the elements are non-negative
+                    if (stringArray.length == 5 && Arrays.stream(intArray).allMatch(x -> x >= 0) && noNonInteger) {
                         if (courses.containsKey(stringID)) {
                             courses.compute(stringID, (key, value) -> {
                                 for (int i = 0; i < value.length; i++) {
@@ -164,6 +166,249 @@ public class Main {
 
             } else {stillSearching = false;}
         }
+    }
+
+    public static void showStats(Map<String, int[]>courses, List<int[]>submissions) {
+        List<Integer> mostPopularCourse = computeMostPopularCourse(courses, (course1, course2) -> course1 > course2);
+        List<Integer> leastPopularCourse = computeLeastPopularCourse(courses, (course1, course2) -> course1 < course2);
+        List<Integer> mostActiveCourse = computeMostActiveCourse(submissions, (submission1, submission2) -> submission1 > submission2);
+        List<Integer> leastActiveCourse = computeLeastActiveCourse(submissions, (submission1, submission2) -> submission1 < submission2);
+        List<Integer> hardestCourse = computeHardestCourse(courses, (course1, course2) -> course1 < course2); // course 1 < course 2 because the lowest average is the hardest.
+        List<Integer> easiestCourse = computeEasiestCourse(courses, (course1, course2) -> course1 > course2);
+
+        String statsTemp = """
+                Most popular: %s
+                Least popular: %s
+                Highest Activity: %s
+                Lowest Activity: %s
+                Easiest course: %s
+                Hardest course: %s
+                """;
+
+        System.out.println("Type the name of a course to see details or 'back' to quit");
+        if (mostPopularCourse.equals(leastPopularCourse) && mostActiveCourse.equals(leastPopularCourse)) {
+            System.out.printf(statsTemp, convertIndexToName(mostPopularCourse), "n/a", convertIndexToName(mostActiveCourse), "n/a", convertIndexToName(easiestCourse), convertIndexToName(hardestCourse));
+        } else {
+            System.out.printf(statsTemp, convertIndexToName(mostPopularCourse), convertIndexToName(leastPopularCourse), convertIndexToName(mostActiveCourse), convertIndexToName(leastActiveCourse), convertIndexToName(easiestCourse), convertIndexToName(hardestCourse));
+        }
+
+        boolean moreStats = true;
+        while (moreStats) {
+            String inputCourse = scanner.nextLine().toLowerCase();
+            moreStats = placeholder(courses, inputCourse);
+        }
+    }
+
+    public static String convertIndexToName(List<Integer> indexes) {
+        StringBuilder sb = new StringBuilder();
+        boolean arrayEmpty = true;
+
+        String names = null;
+        if (!indexes.isEmpty()) {
+            for (Integer index : indexes) {
+                switch (index) {
+                    case 0 -> sb.append("Java, ");
+                    case 1 -> sb.append("DSA, ");
+                    case 2 -> sb.append("Databases, ");
+                    case 3 -> sb.append("Spring, ");
+                }
+            }
+            names = String.valueOf(sb);
+            arrayEmpty = false;
+        }
+
+        return arrayEmpty ? "n/a" : names.substring(0, names.length() - 2); //removes the last two characters: comma and space.
+    }
+
+    public static List<Integer> computeMostPopularCourse(Map<String, int[]> courses, BiFunction<Integer, Integer, Boolean> compare) {
+        int maxCount = 0;
+        return getPopularity(courses, compare, maxCount);
+    }
+
+    public static List<Integer> computeLeastPopularCourse(Map<String, int[]> courses, BiFunction<Integer, Integer, Boolean> compare) {
+
+        int minCount = Integer.MAX_VALUE;
+        return getPopularity(courses, compare, minCount);
+    }
+
+    public static List<Integer> getPopularity(Map<String, int[]> courses, BiFunction<Integer, Integer, Boolean> compare, int minCount) {
+        List<Integer> leastPopular = new ArrayList<>();
+
+        if (courses.values().isEmpty()) {return leastPopular;}
+        else {
+            for (int i = 0; i < 4; i++) {
+                int countForMin = 0;
+                for (int[] marks: courses.values()) {
+                    if (marks[i] > 0) {countForMin++;}
+                }
+                if (compare.apply(countForMin, minCount)) {
+                    minCount = countForMin;
+                    leastPopular.clear();
+                    leastPopular.add(i);
+                } else if (countForMin == minCount) {
+                    leastPopular.add(i);
+                }
+            }
+        }
+        return leastPopular;
+    }
+
+
+    public static List<Integer> computeHardestCourse(Map<String, int[]> courses, BiFunction<Double, Double, Boolean> compare) {
+        double maxAvg = Double.MAX_VALUE;
+        return getDifficulty(courses, compare, maxAvg);
+    }
+
+    public static List<Integer> computeEasiestCourse(Map<String, int[]> courses, BiFunction<Double, Double, Boolean> compare) {
+        double minAvg = 0;
+        return getDifficulty(courses, compare, minAvg);
+    }
+
+    public static List<Integer> getDifficulty(Map<String, int[]> courses, BiFunction<Double, Double, Boolean> compare, double minAvg) {
+
+        double[] avgMarks = new double[4];
+        int[] count = new int[4];
+        for (int[] marks : courses.values()) {
+            for (int i = 0; i < 4; i++) {
+                if (marks[i] > 0) {
+                    avgMarks[i] += marks[i];
+                    count[i]++;
+                }
+            }
+        }
+        for (int i = 0; i < 4; i++) {
+            if (count[i] > 0) {
+                avgMarks[i] /= count[i];
+            }
+        }
+
+        List<Integer> average = new ArrayList<>();
+
+        if (courses.values().isEmpty()) {return average;}
+        else {
+            for (int i = 0; i < 4; i++) {
+                if (compare.apply(avgMarks[i], minAvg)) {
+                    minAvg = avgMarks[i];
+                    average.clear();
+                    average.add(i);
+                } else if (avgMarks[i] == minAvg ) {average.add(i);}
+            }
+        }
+
+        return average;
+    }
+
+    public static List<Integer> computeMostActiveCourse(List<int[]> submissions, BiFunction<Integer, Integer, Boolean> compare) {
+        int courseSubmissions = 0;
+        return getActivityCount(submissions, compare, courseSubmissions);
+    }
+
+    public static List<Integer> computeLeastActiveCourse(List<int[]> submissions, BiFunction<Integer, Integer, Boolean> compare) {
+        int courseSubmissions = Integer.MAX_VALUE;
+        return getActivityCount(submissions, compare, courseSubmissions);
+    }
+
+    public static List<Integer> getActivityCount(List<int[]> submissions, BiFunction<Integer, Integer, Boolean> compare, int courseSubmissions) {
+        List<Integer> mostActive = new ArrayList<>();
+
+        //condition to check if the submissions list is empty
+        if (submissions.isEmpty()) {
+            return mostActive;
+        } else {
+            for (int i = 0; i < 4; i++) {
+                int countForMin = 0;
+                for (int[] marks: submissions) {
+                    if (marks[i] > 0) {countForMin++;}
+                }
+                if (compare.apply(countForMin, courseSubmissions)) {
+                    courseSubmissions = countForMin;
+                    mostActive.clear();
+                    mostActive.add(i);
+                } else if (countForMin == courseSubmissions ) {
+                    mostActive.add(i);
+                }
+            }
+        }
+
+        return mostActive;
+    }
+
+    public static boolean placeholder(Map<String, int[]>courses, String inputCourse) {
+        record Course (String id, float[] scores) {
+            public float[] getScores() {
+                return scores;
+            }
+
+            public String getId() {
+                return id;
+            }
+        }
+
+        List<Course> javaCourse = new ArrayList<>();
+        List<Course> dsaCourse = new ArrayList<>();
+        List<Course> databasesCourse = new ArrayList<>();
+        List<Course> springCourse = new ArrayList<>();
+
+        boolean changeMoreStats = false;
+
+        String template = """
+                %s\t%.0f\t%.1f%%
+                """;
+        // Get the entries in the courses map
+        Set<Map.Entry<String, int[]>> entries = courses.entrySet();
+
+        // Loop through the entries and calculate the marks for each course
+        for (Map.Entry<String, int[]> entry : entries) {
+            String id = entry.getKey();
+            int[] marks = entry.getValue();
+
+            javaCourse.add(new Course(id, new float[]{marks[0], ((float) (marks[0]*100) / 600) } ));
+            dsaCourse.add(new Course( id, new float[]{marks[1], ((float) marks[1]*100) / 400 } ));
+            databasesCourse.add(new Course( id, new float[]{marks[2], ((float) marks[2]*100) / 480 } ));
+            springCourse.add(new Course( id, new float[]{marks[3], ((float) marks[3]*100) / 550 } ));
+        }
+
+        //sorting.
+        List<List<Course>> allCourses = Arrays.asList(javaCourse, dsaCourse, databasesCourse, springCourse);
+        for (List<Course> course : allCourses) {
+            course.sort((c1, c2) -> {
+                int result = Float.compare(c2.getScores()[0], c1.getScores()[0]);
+                return result == 0 ? c1.getId().compareTo(c2.getId()) : result;
+            });
+        }
+
+
+
+        switch (inputCourse) {
+            case "java" -> {
+                System.out.println("Java\nid\tpoints\tcompleted");
+                for (Course course : javaCourse) {
+                    if (course.scores[0] != 0) {System.out.printf(template, course.id, course.scores[0], course.scores[1]);}
+                }
+            }
+            case "dsa" -> {
+                System.out.println("DSA\nid\tpoints\tcompleted");
+                for (Course course : dsaCourse) {
+                    if (course.scores[0] != 0) {System.out.printf(template, course.id, course.scores[0], course.scores[1]);}
+                }
+            }
+            case "databases" -> {
+                System.out.println("Databases\nid\tpoints\tcompleted");
+                for (Course course : databasesCourse) {
+                    if (course.scores[0] != 0) {System.out.printf(template, course.id, course.scores[0], course.scores[1]);}
+                }
+            }
+            case "spring" -> {
+                System.out.println("Spring\nid\tpoints\tcompleted");
+                for (Course course : springCourse) {
+                    if (course.scores[0] != 0) {System.out.printf(template, course.id, course.scores[0], course.scores[1]);}
+                }
+            }
+            case "back" -> {changeMoreStats = true;}
+            default -> System.out.println("Unknown course");
+        }
+
+        return !changeMoreStats;
     }
 
 }
