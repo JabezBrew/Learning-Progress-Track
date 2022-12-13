@@ -1,12 +1,14 @@
 package tracker;
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 public class Main {
 
     final static Scanner scanner = new Scanner(System.in);
-
+    public static int notifyMethodCallCount = 0;
     public static void main(String[] args) {
 
         System.out.println("Learning Progress Tracker");
@@ -20,8 +22,10 @@ public class Main {
         int studentsAdded = 0;
         boolean isCommand = true;
         boolean isCredentials = true;
+        boolean notifiedAlready;
         int emailID = 10000;
         Map<String, String> emails = new LinkedHashMap<>();
+        Map<String, String> emailAndName = new LinkedHashMap<>();
         Map<String, int[]> courses = new LinkedHashMap<>();
         List<int[]> submissions = new ArrayList<>();
 
@@ -47,6 +51,7 @@ public class Main {
                         Learner learner = new Learner(studentCredentials);
 
                         if (learner.getFirstName().matches(nameRegex) && learner.getLastName().matches(nameRegex) && learner.getEmail().matches(emailRegex)) {
+                            String fullName = learner.getFirstName() + " " + learner.getLastName();
                             String email = learner.getEmail();
                             String stringEmailID = Integer.toString(emailID);
 
@@ -54,6 +59,7 @@ public class Main {
                                 System.out.println("This email is already taken");
                             } else {
                                 emails.put(email, stringEmailID);
+                                emailAndName.put(email, fullName);
                                 studentsAdded++;
                                 emailID++;
                                 System.out.println("The student has been added");
@@ -84,6 +90,8 @@ public class Main {
 
             } else if ("statistics".equals(command)) {
                 showStats(courses, submissions);
+            } else if ("notify".equals(command)) {
+                notifyStudent(emails, emailAndName, courses);
             } else if ("add points".equals(command)) {
                 addPoints(emails, courses, submissions);
             } else if ("find".equals(command)) {
@@ -166,6 +174,64 @@ public class Main {
 
             } else {stillSearching = false;}
         }
+    }
+
+    public static void notifyStudent(Map<String, String> emails, Map<String, String> emailAndName, Map<String, int[]> courses) {
+        //made the email the key so had to create a custom function get key (email) with the value.
+        Function<String, String> keyFinder = value ->
+            emails.entrySet().stream()
+                    .filter(entry -> Objects.equals(value, entry.getValue()))
+                    .map(Map.Entry::getKey)
+                    .findFirst()
+                    .orElse(null);
+
+        String message = """
+                To: %s
+                Re: Your Learning Progress
+                Hello %s! You have accomplished your %s course!
+                """;
+        record AccomplishedStudents (String email, String name) {}
+        List<AccomplishedStudents> studentsToSendMailList = new ArrayList<>();
+
+
+        if (notifyMethodCallCount < 1) {
+
+            notifyMethodCallCount++;
+            for (String studentId : courses.keySet()) {
+                int[] scoreArray = courses.get(studentId);
+                if (scoreArray[0] == 600) {
+                    String email = keyFinder.apply(studentId);
+                    String name = emailAndName.get(email);
+                    studentsToSendMailList.add(new AccomplishedStudents(email, name));
+                    System.out.printf(message, email, name, "Java");
+                }
+                if (scoreArray[1] == 400) {
+                    String email = keyFinder.apply(studentId);
+                    String name = emailAndName.get(email);
+                    studentsToSendMailList.add(new AccomplishedStudents(email, name));
+                    System.out.printf(message, email, name, "DSA");
+                }
+                if (scoreArray[2] == 480) {
+                    String email = keyFinder.apply(studentId);
+                    String name = emailAndName.get(email);
+                    studentsToSendMailList.add(new AccomplishedStudents(email, name));
+                    System.out.printf(message, email, name, "Databases");
+                }
+                if (scoreArray[3] == 550) {
+                    String email = keyFinder.apply(studentId);
+                    String name = emailAndName.get(email);
+                    studentsToSendMailList.add(new AccomplishedStudents(email, name));
+                    System.out.printf(message, email, name, "Spring");
+                }
+
+            }
+        }
+
+
+        //Increase count by one iff the email appears one in studentsToSendMailList. code below makes sure of that
+        Set<AccomplishedStudents> uniqueStudentsToSendMailList = new HashSet<>(studentsToSendMailList);
+        int studentsNotified = uniqueStudentsToSendMailList.size();
+        System.out.println("Total " + studentsNotified + " students have been notified.");
     }
 
     public static void showStats(Map<String, int[]>courses, List<int[]>submissions) {
@@ -333,12 +399,20 @@ public class Main {
         return mostActive;
     }
 
+    @SuppressWarnings("DuplicatedCode")
     public static boolean placeholder(Map<String, int[]>courses, String inputCourse) {
+
+        boolean changeMoreStats = false;
+
+        String template = """
+                %s\t%.0f\t%.1f%%
+                """;
+
+        // could just use the Course class to replace lines 352 to 381. but I want to keep the use of record here.
         record Course (String id, float[] scores) {
             public float[] getScores() {
                 return scores;
             }
-
             public String getId() {
                 return id;
             }
@@ -349,11 +423,6 @@ public class Main {
         List<Course> databasesCourse = new ArrayList<>();
         List<Course> springCourse = new ArrayList<>();
 
-        boolean changeMoreStats = false;
-
-        String template = """
-                %s\t%.0f\t%.1f%%
-                """;
         // Get the entries in the courses map
         Set<Map.Entry<String, int[]>> entries = courses.entrySet();
 
