@@ -2,8 +2,6 @@ package tracker;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-
 
 public class Main {
 
@@ -15,14 +13,13 @@ public class Main {
 
         String nameRegex = "^(?!.*[-']{2})[a-zA-Z ][-a-zA-Z ']*[a-zA-Z ]$";
 
-        String emailRegex = "[a-zA-Z0-9\\-\\.]+@[a-zA-Z0-9\\-\\.]+\\.[a-zA-Z0-9\\-\\.]+";
+        String emailRegex = "[a-zA-Z0-9-.]+@[a-zA-Z0-9-.]+\\.[a-zA-Z0-9-.]+";
 
 
 
         int studentsAdded = 0;
         boolean isCommand = true;
         boolean isCredentials = true;
-        boolean notifiedAlready;
         int emailID = 10000;
         Map<String, String> emails = new LinkedHashMap<>();
         Map<String, String> emailAndName = new LinkedHashMap<>();
@@ -133,7 +130,7 @@ public class Main {
                     //Arrays.stream(intArray).allMatch(x -> x >= 0). makes sure all the elements are non-negative
                     if (stringArray.length == 5 && Arrays.stream(intArray).allMatch(x -> x >= 0) && noNonInteger) {
                         if (courses.containsKey(stringID)) {
-                            courses.compute(stringID, (key, value) -> {
+                            courses.computeIfPresent(stringID, (key, value) -> {
                                 for (int i = 0; i < value.length; i++) {
                                     value[i] += intArray[i];
                                 }
@@ -399,7 +396,6 @@ public class Main {
         return mostActive;
     }
 
-    @SuppressWarnings("DuplicatedCode")
     public static boolean placeholder(Map<String, int[]>courses, String inputCourse) {
 
         boolean changeMoreStats = false;
@@ -408,7 +404,7 @@ public class Main {
                 %s\t%.0f\t%.1f%%
                 """;
 
-        // could just use the Course class to replace lines 352 to 381. but I want to keep the use of record here.
+        //a Course (e.g. java or spring) record that stores student id and marks and percentage.
         record Course (String id, float[] scores) {
             public float[] getScores() {
                 return scores;
@@ -418,6 +414,7 @@ public class Main {
             }
         }
 
+        //create a List object of course objects, each Course object referring to a student enrolled in the particular course.
         List<Course> javaCourse = new ArrayList<>();
         List<Course> dsaCourse = new ArrayList<>();
         List<Course> databasesCourse = new ArrayList<>();
@@ -446,8 +443,7 @@ public class Main {
             });
         }
 
-
-
+        //what to show when user inputs course.
         switch (inputCourse) {
             case "java" -> {
                 System.out.println("Java\nid\tpoints\tcompleted");
@@ -473,13 +469,11 @@ public class Main {
                     if (course.scores[0] != 0) {System.out.printf(template, course.id, course.scores[0], course.scores[1]);}
                 }
             }
-            case "back" -> {changeMoreStats = true;}
+            case "back" -> changeMoreStats = true;
             default -> System.out.println("Unknown course");
         }
-
         return !changeMoreStats;
     }
-
 }
 
 
